@@ -1,0 +1,5 @@
+package com.auth_service.auth_service.exception;
+
+public class GlobalExceptionHandler {
+
+}
