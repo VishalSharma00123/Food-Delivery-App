@@ -1,7 +1,7 @@
 package com.auth_service.auth_service.mapper;
 
-import com.food.auth.dto.UserResponse;
-import com.food.auth.entity.UserCredential;
+import com.auth_service.auth_service.dto.UserResponse;
+import com.auth_service.auth_service.entity.UserCredential;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

@@ -1,32 +1,25 @@
 package com.auth_service.auth_service.security;
 
-import com.food.auth.entity.UserCredential;
-import com.food.auth.repository.UserCredentialRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.*;
+import com.auth_service.auth_service.entity.UserCredential;
+import com.auth_service.auth_service.repository.UserCredentialRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserCredentialRepository userRepository;
+    private final UserCredentialRepository repository;
+
+    public CustomUserDetailsService(UserCredentialRepository repository) {
+        this.repository = repository;
+    }
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        UserCredential user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPassword(),
-                user.isEnabled(),
-                true,
-                true,
-                true,
-                user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority(role.getName()))
-                        .toList());
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        UserCredential credential = repository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
+        return new CustomUserDetails(credential);
     }
 }
