@@ -15,7 +15,7 @@ spec:
       containers:
         - name: auth-service
           # Uses the image built locally
-          image: auth-service:latest
+          image: food-delivery-backend-auth-service:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: SPRING_DATASOURCE_URL

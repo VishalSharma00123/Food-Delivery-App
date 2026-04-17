@@ -52,7 +52,7 @@ public class CustomUserDetails implements UserDetails {
     public boolean isEnabled() {
         return userCredential.isEnabled();
     }
-    
+
     public Long getId() {
         return userCredential.getId();
     }

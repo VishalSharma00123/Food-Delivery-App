@@ -1,4 +1,4 @@
 package com.restaurent_service.restaurent_service.security;
 
-public class SecurityConfig {
+public class JwtService {
 }

@@ -1,3 +1,247 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: api-gateway
+
+  cloud:
+    gateway:
+      # ============ ROUTE DEFINITIONS ============
+      routes:
+        # ---------- AUTH SERVICE ----------
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authServiceCB
+                fallbackUri: forward:/fallback/auth
+
+        # ---------- RESTAURANT SERVICE (Public GET) ----------
+        - id: restaurant-service-public
+          uri: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/restaurants/**
+            - Method=GET
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: restaurantServiceCB
+                fallbackUri: forward:/fallback/restaurant
+
+        # ---------- RESTAURANT SERVICE (Authenticated) ----------
+        - id: restaurant-service-secured
+          uri: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/restaurants/**
+            - Method=POST,PUT,PATCH,DELETE
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: restaurantServiceCB
+                fallbackUri: forward:/fallback/restaurant
+
+        # ---------- ORDER SERVICE ----------
+        - id: order-service
+          uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: orderServiceCB
+                fallbackUri: forward:/fallback/order
+
+        # ---------- PAYMENT SERVICE ----------
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: paymentServiceCB
+                fallbackUri: forward:/fallback/payment
+
+      # Default filters applied to all routes
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+      # Global CORS
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+
+  # Redis config (for rate limiting - optional)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# JWT config - MUST match auth-service exactly
+jwt:
+  secret: ${JWT_SECRET:YourSuperSecretKeyThatIsAtLeast32BytesLong12345}
+
+# Resilience4j Circuit Breaker
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 5
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000
+    instances:
+      authServiceCB:
+        baseConfig: default
+      restaurantServiceCB:
+        baseConfig: default
+      orderServiceCB:
+        baseConfig: default
+      paymentServiceCB:
+        baseConfig: default
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    gateway:
+      enabled: true
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.api_gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+
+
+#    🔥 4. Circuit Breaker (VERY IMPORTANT)
+#
+#Example:
+#
+#filters:
+#  - name: CircuitBreaker
+#    args:
+#      name: authServiceCB
+#      fallbackUri: forward:/fallback/auth
+#✅ What it does
+#
+#👉 If service fails:
+#
+#Stops sending traffic temporarily
+#Redirects to fallback
+#🔁 Flow
+#Client → Gateway → Auth Service ❌ (down)
+#                    ↓
+#              /fallback/auth ✅
+#🔥 5. Default Filters
+#default-filters:
+#  - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+#
+#👉 Removes duplicate headers
+#
+#💡 Fixes CORS issues
+#
+#🔥 6. Global CORS
+#allowedOrigins: "*"
+#allowedMethods: "*"
+#allowedHeaders: "*"
+#
+#👉 Allows:
+#
+#Any frontend (React, Angular, etc.)
+#Any API call
+#🔥 7. Redis (Optional but powerful)
+#spring.data.redis
+#
+#👉 Used for:
+#
+#Rate limiting
+#Caching
+#Distributed control
+#🔥 8. JWT Config
+#jwt:
+#  secret: ${JWT_SECRET:...}
+#
+#👉 MUST match auth-service
+#
+#✅ Why?
+#
+#JWT validation works like:
+#
+#Token → decode using secret → validate
+#
+#If secret mismatches:
+#❌ Token invalid everywhere
+#
+#🔥 9. Resilience4j (Circuit Breaker Config)
+#slidingWindowSize: 10
+#failureRateThreshold: 50
+#✅ Meaning
+#Look at last 10 requests
+#If ≥ 50% fail
+#👉 Open circuit
+#⏱️ Other configs
+#waitDurationInOpenState: 10000
+#
+#👉 Wait 10 seconds before retry
+#
+#permittedNumberOfCallsInHalfOpenState: 5
+#
+#👉 Allow 5 test requests
+#
+#slowCallDurationThreshold: 2000
+#
+#👉 Calls slower than 2 sec = considered failure
+#
+#🔥 10. TimeLimiter
+#timeoutDuration: 5s
+#
+#👉 If service doesn’t respond in 5 sec:
+#❌ Timeout → fallback
+#
+#🔥 11. Actuator (Monitoring)
+#management.endpoints.web.exposure.include: health,info,gateway
+#Useful URLs:
+#/actuator/health
+#/actuator/gateway
+#Health details:
+#show-details: always
+#
+#👉 Shows full system health
+#
+#🔥 12. Logging
+#org.springframework.cloud.gateway: DEBUG
+#
+#👉 Shows:
+#
+#Route matching
+#Request forwarding
+#Filters execution
+#🔥 Overall Flow
+#Client (React / Postman)
+#        ↓
+#   API Gateway (8080)
+#        ↓
+#---------------------------------
+#| Auth Service (8081)           |
+#| Restaurant Service (8082)     |
+#| Order Service (8083)          |
+#| Payment Service (8084)        |
+#---------------------------------
