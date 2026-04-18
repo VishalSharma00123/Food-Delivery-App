@@ -3,16 +3,14 @@ package com.restaurent_service.restaurent_service.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
-
 @Entity
-@Table(name = "menu_items")
+@Table(name = "menu_categories")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MenuItem {
+public class MenuCategory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,24 +19,9 @@ public class MenuItem {
     @Column(name = "restaurant_id", nullable = false)
     private Long restaurantId;
 
-    @Column(name = "category_id", nullable = false)
-    private Long categoryId;
-
     @Column(nullable = false)
     private String name;
 
     @Column(length = 500)
     private String description;
-
-    @Column(nullable = false)
-    private BigDecimal price;
-
-    @Column(name = "food_type")
-    private String foodType; // VEG, NON_VEG, VEGAN
-
-    @Column(name = "is_available")
-    private Boolean isAvailable;
-
-    @Column(name = "image_url")
-    private String imageUrl;
 }
