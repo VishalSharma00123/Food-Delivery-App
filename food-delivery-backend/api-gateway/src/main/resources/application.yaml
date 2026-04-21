@@ -9,7 +9,9 @@ spring:
     gateway:
       # ============ ROUTE DEFINITIONS ============
       routes:
+
         # ---------- AUTH SERVICE ----------
+        # Lower rate limit – brute-force protection (10 req/s, burst 20)
         - id: auth-service
           uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
@@ -19,8 +21,13 @@ spring:
               args:
                 name: authServiceCB
                 fallbackUri: forward:/fallback/auth
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@authRateLimiter}"
+                key-resolver: "#{@ipKeyResolver}"
 
         # ---------- RESTAURANT SERVICE (Public GET) ----------
+        # Public reads – generous limit (50 req/s, burst 100)
         - id: restaurant-service-public
           uri: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
           predicates:
@@ -31,8 +38,13 @@ spring:
               args:
                 name: restaurantServiceCB
                 fallbackUri: forward:/fallback/restaurant
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@publicReadRateLimiter}"
+                key-resolver: "#{@ipKeyResolver}"
 
-        # ---------- RESTAURANT SERVICE (Authenticated) ----------
+        # ---------- RESTAURANT SERVICE (Authenticated writes) ----------
+        # Secured mutations – per-user limit (30 req/s, burst 60)
         - id: restaurant-service-secured
           uri: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
           predicates:
@@ -43,8 +55,13 @@ spring:
               args:
                 name: restaurantServiceCB
                 fallbackUri: forward:/fallback/restaurant
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@authenticatedRateLimiter}"
+                key-resolver: "#{@userKeyResolver}"
 
         # ---------- ORDER SERVICE ----------
+        # Transactional – per-user limit (30 req/s, burst 60)
         - id: order-service
           uri: ${ORDER_SERVICE_URL:http://localhost:8083}
           predicates:
@@ -54,8 +71,13 @@ spring:
               args:
                 name: orderServiceCB
                 fallbackUri: forward:/fallback/order
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@authenticatedRateLimiter}"
+                key-resolver: "#{@userKeyResolver}"
 
         # ---------- PAYMENT SERVICE ----------
+        # High-value endpoints – per-user limit (30 req/s, burst 60)
         - id: payment-service
           uri: ${PAYMENT_SERVICE_URL:http://localhost:8084}
           predicates:
@@ -65,8 +87,28 @@ spring:
               args:
                 name: paymentServiceCB
                 fallbackUri: forward:/fallback/payment
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@authenticatedRateLimiter}"
+                key-resolver: "#{@userKeyResolver}"
 
-      # Default filters applied to all routes
+        # ---------- NOTIFICATION SERVICE ----------
+        # Internal use – moderate limit (20 req/s, burst 40)
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCB
+                fallbackUri: forward:/fallback/notification
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@notificationRateLimiter}"
+                key-resolver: "#{@userKeyResolver}"
+
+      # Default filters applied to ALL routes
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
 
@@ -78,17 +120,27 @@ spring:
             allowedMethods: "*"
             allowedHeaders: "*"
 
-  # Redis config (for rate limiting - optional)
+  # ============ REDIS ============
+  # Used by Spring Cloud Gateway's built-in RequestRateLimiter (Token Bucket)
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}        # blank = no auth (change in prod)
+      timeout: 2000ms                     # command timeout
+      connect-timeout: 1000ms
+      lettuce:
+        pool:
+          max-active: 16    # max simultaneous connections
+          max-idle: 8
+          min-idle: 2
+          max-wait: 1000ms  # block at most 1 s before error
 
-# JWT config - MUST match auth-service exactly
+# JWT config – MUST match auth-service exactly
 jwt:
   secret: ${JWT_SECRET:YourSuperSecretKeyThatIsAtLeast32BytesLong12345}
 
-# Resilience4j Circuit Breaker
+# ============ RESILIENCE4J CIRCUIT BREAKER ============
 resilience4j:
   circuitbreaker:
     configs:
@@ -108,12 +160,15 @@ resilience4j:
         baseConfig: default
       paymentServiceCB:
         baseConfig: default
+      notificationServiceCB:
+        baseConfig: default
 
   timelimiter:
     configs:
       default:
         timeoutDuration: 5s
 
+# ============ ACTUATOR ============
 management:
   endpoints:
     web:
@@ -125,123 +180,9 @@ management:
     health:
       show-details: always
 
+# ============ LOGGING ============
 logging:
   level:
     com.api_gateway: DEBUG
     org.springframework.cloud.gateway: DEBUG
-
-
-#    🔥 4. Circuit Breaker (VERY IMPORTANT)
-#
-#Example:
-#
-#filters:
-#  - name: CircuitBreaker
-#    args:
-#      name: authServiceCB
-#      fallbackUri: forward:/fallback/auth
-#✅ What it does
-#
-#👉 If service fails:
-#
-#Stops sending traffic temporarily
-#Redirects to fallback
-#🔁 Flow
-#Client → Gateway → Auth Service ❌ (down)
-#                    ↓
-#              /fallback/auth ✅
-#🔥 5. Default Filters
-#default-filters:
-#  - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
-#
-#👉 Removes duplicate headers
-#
-#💡 Fixes CORS issues
-#
-#🔥 6. Global CORS
-#allowedOrigins: "*"
-#allowedMethods: "*"
-#allowedHeaders: "*"
-#
-#👉 Allows:
-#
-#Any frontend (React, Angular, etc.)
-#Any API call
-#🔥 7. Redis (Optional but powerful)
-#spring.data.redis
-#
-#👉 Used for:
-#
-#Rate limiting
-#Caching
-#Distributed control
-#🔥 8. JWT Config
-#jwt:
-#  secret: ${JWT_SECRET:...}
-#
-#👉 MUST match auth-service
-#
-#✅ Why?
-#
-#JWT validation works like:
-#
-#Token → decode using secret → validate
-#
-#If secret mismatches:
-#❌ Token invalid everywhere
-#
-#🔥 9. Resilience4j (Circuit Breaker Config)
-#slidingWindowSize: 10
-#failureRateThreshold: 50
-#✅ Meaning
-#Look at last 10 requests
-#If ≥ 50% fail
-#👉 Open circuit
-#⏱️ Other configs
-#waitDurationInOpenState: 10000
-#
-#👉 Wait 10 seconds before retry
-#
-#permittedNumberOfCallsInHalfOpenState: 5
-#
-#👉 Allow 5 test requests
-#
-#slowCallDurationThreshold: 2000
-#
-#👉 Calls slower than 2 sec = considered failure
-#
-#🔥 10. TimeLimiter
-#timeoutDuration: 5s
-#
-#👉 If service doesn’t respond in 5 sec:
-#❌ Timeout → fallback
-#
-#🔥 11. Actuator (Monitoring)
-#management.endpoints.web.exposure.include: health,info,gateway
-#Useful URLs:
-#/actuator/health
-#/actuator/gateway
-#Health details:
-#show-details: always
-#
-#👉 Shows full system health
-#
-#🔥 12. Logging
-#org.springframework.cloud.gateway: DEBUG
-#
-#👉 Shows:
-#
-#Route matching
-#Request forwarding
-#Filters execution
-#🔥 Overall Flow
-#Client (React / Postman)
-#        ↓
-#   API Gateway (8080)
-#        ↓
-#---------------------------------
-#| Auth Service (8081)           |
-#| Restaurant Service (8082)     |
-#| Order Service (8083)          |
-#| Payment Service (8084)        |
-#---------------------------------
+    org.springframework.data.redis: WARN

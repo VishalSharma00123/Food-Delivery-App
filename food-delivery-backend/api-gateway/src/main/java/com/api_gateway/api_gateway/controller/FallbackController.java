@@ -50,4 +50,13 @@ public class FallbackController {
                         "/api/payments",
                         503));
     }
+
+    @GetMapping("/notification")
+    public ResponseEntity<ApiErrorResponse> notificationFallback() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(
+                        "Notification Service is currently unavailable. Please try again later.",
+                        "/api/notifications",
+                        503));
+    }
 }

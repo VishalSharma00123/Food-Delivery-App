@@ -7,5 +7,6 @@ data:
   RESTAURANT_SERVICE_URL: "http://restaurant-service:8082"
   ORDER_SERVICE_URL: "http://order-service:8083"
   PAYMENT_SERVICE_URL: "http://payment-service:8084"
+  NOTIFICATION_SERVICE_URL: "http://notification-service:8085"
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"

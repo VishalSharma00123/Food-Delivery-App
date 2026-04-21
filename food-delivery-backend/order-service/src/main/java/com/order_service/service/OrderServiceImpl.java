@@ -32,7 +32,7 @@ public class OrderServiceImpl implements OrderService {
         
         // Flatten the menu for easy lookup
         List<MenuItemDto> flatMenu = groupedMenu.values().stream()
-                .flatMap(List::stream)
+                .flatMap(List::stream) // List::stream equals to list -> list.stream()
                 .collect(Collectors.toList());
         
         Map<Long, MenuItemDto> menuMap = flatMenu.stream()
