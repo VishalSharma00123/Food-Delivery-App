@@ -37,3 +37,6 @@ The Order Service is a standard Java/Spring Boot microservice communicating over
 
 ## 5. Caching Strategy
 No strict caching for Order processing since pricing validation requires real-time fidelity, and orders are highly dynamic.
+
+## 6. Related: User Service
+Default **delivery address** and extended **customer profile** data are modeled in **`user-service`** (`../user-service/design.md`). Orders keep using `user_id` from the gateway/JWT context; linking to User Service addresses can be added later without changing the core order schema.

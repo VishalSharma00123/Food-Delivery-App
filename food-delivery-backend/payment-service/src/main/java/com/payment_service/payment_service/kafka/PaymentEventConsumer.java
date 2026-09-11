@@ -20,8 +20,7 @@ public class PaymentEventConsumer {
      */
     @KafkaListener(
         topics = "${kafka.topics.order-placed}",
-        groupId = "${spring.kafka.consumer.group-id}",
-        containerFactory = "kafkaListenerContainerFactory"
+        groupId = "${spring.kafka.consumer.group-id}"
     )
     public void onOrderPlaced(OrderPlacedEvent event) {
         log.info("Received OrderPlacedEvent: orderId={}, userId={}, amount={}, method={}",

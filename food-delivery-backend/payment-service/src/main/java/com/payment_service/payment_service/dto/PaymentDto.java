@@ -22,6 +22,7 @@ public class PaymentDto {
     private PaymentMethod paymentMethod;
     private PaymentStatus status;
     private String transactionId;
+    private String razorpayOrderId;
     private String failureReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

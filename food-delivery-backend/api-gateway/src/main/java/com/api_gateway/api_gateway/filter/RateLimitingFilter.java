@@ -9,6 +9,7 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -21,11 +22,14 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * In-Memory Sliding-Window Rate Limiting Filter.
+ * Optional in-memory sliding-window rate limit (per client IP).
  *
- * This filter acts as a LAST-RESORT guard when Redis is unavailable.
- * When Redis is up, the per-route {@code RequestRateLimiter} filters defined
- * in application.yaml take precedence.
+ * <p><strong>Disabled by default.</strong> Per-route {@link org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory}
+ * (Redis token bucket) in application.yaml is the primary limiter. Enabling this filter
+ * <em>in addition</em> to Redis applies a second, much stricter global cap and will exhaust
+ * quickly during local dev (React Strict Mode double-fetch, Postman, HMR).
+ *
+ * <p>Enable only when Redis is unavailable: {@code gateway.rate-limit.in-memory.enabled=true}
  *
  * Algorithm  : Sliding Window Log (per client IP)
  * Limit      : {@value MAX_REQUESTS} requests per {@value WINDOW_MS} ms
@@ -38,6 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *   Retry-After           – seconds to wait on 429 responses
  */
 @Component
+@ConditionalOnProperty(prefix = "gateway.rate-limit.in-memory", name = "enabled", havingValue = "true")
 public class RateLimitingFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitingFilter.class);

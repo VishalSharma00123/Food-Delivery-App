@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
  *
  * This class provides fallback routes.
  */
+
 @Configuration
 public class GatewayConfig {
 

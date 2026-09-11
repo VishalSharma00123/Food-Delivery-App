@@ -4,6 +4,7 @@ import com.notification_service.notification_service.dto.NotificationDto;
 import com.notification_service.notification_service.dto.event.OrderPlacedEvent;
 import com.notification_service.notification_service.dto.event.PaymentConfirmedEvent;
 import com.notification_service.notification_service.dto.event.PaymentFailedEvent;
+import com.notification_service.notification_service.dto.event.UserProfileChangedPayload;
 
 import java.util.List;
 
@@ -14,6 +15,8 @@ public interface NotificationService {
 	void onPaymentConfirmed(PaymentConfirmedEvent event);
 
 	void onPaymentFailed(PaymentFailedEvent event);
+
+	void onUserProfileChanged(UserProfileChangedPayload event);
 
 	List<NotificationDto> listForUser(Long userId, Boolean unreadOnly);
 

@@ -9,11 +9,15 @@ import com.auth_service.auth_service.exception.UserAlreadyExistsException;
 import com.auth_service.auth_service.repository.RoleRepository;
 import com.auth_service.auth_service.repository.UserCredentialRepository;
 import com.auth_service.auth_service.security.JwtService;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -74,12 +78,16 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+        } catch (AuthenticationException ex) {
+            throw new BadCredentialsException("Invalid email or password", ex);
+        }
 
         UserCredential user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
 
         List<String> roleNames = user.getRoles().stream().map(Role::getName).collect(Collectors.toList());
         String token = jwtService.generateToken(user.getEmail(), user.getId(), roleNames);

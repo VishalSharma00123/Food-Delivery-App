@@ -1,9 +1,11 @@
 package com.notification_service.notification_service.service;
 
+import com.fooddelivery.rbac.RbacSupport;
 import com.notification_service.notification_service.dto.NotificationDto;
 import com.notification_service.notification_service.dto.event.OrderPlacedEvent;
 import com.notification_service.notification_service.dto.event.PaymentConfirmedEvent;
 import com.notification_service.notification_service.dto.event.PaymentFailedEvent;
+import com.notification_service.notification_service.dto.event.UserProfileChangedPayload;
 import com.notification_service.notification_service.entity.Notification;
 import com.notification_service.notification_service.entity.NotificationType;
 import com.notification_service.notification_service.repository.NotificationRepository;
@@ -89,20 +91,52 @@ public class NotificationServiceImpl implements NotificationService {
 	}
 
 	@Override
+	@Transactional
+	public void onUserProfileChanged(UserProfileChangedPayload event) {
+		if (event.getAuthUserId() == null) {
+			return;
+		}
+		String profilePart = event.getProfileId() != null ? " #" + event.getProfileId() : "";
+		String title = event.getType() == UserProfileChangedPayload.ChangeType.CREATED
+				? "Profile created"
+				: "Profile updated";
+		String body = title + profilePart + ".";
+		Notification n = Notification.builder()
+				.userId(event.getAuthUserId())
+				.type(NotificationType.USER_PROFILE_CHANGED)
+				.title(title)
+				.body(body)
+				.orderId(null)
+				.profileId(event.getProfileId())
+				.read(false)
+				.build();
+		notificationRepository.save(n);
+	}
+
+	@Override
 	@Transactional(readOnly = true)
 	public List<NotificationDto> listForUser(Long userId, Boolean unreadOnly) {
+		RbacSupport.assertSelfOrAdmin(userId, "notifications");
 		List<Notification> list;
 		if (Boolean.TRUE.equals(unreadOnly)) {
 			list = notificationRepository.findByUserIdAndReadOrderByCreatedAtDesc(userId, false);
 		} else {
 			list = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
 		}
-		return list.stream().map(this::toDto).collect(Collectors.toList());
+		return list.stream().map(this::toDto).collect(Collectors.toList()); /// this is equal to the below code in comment
+		/**
+		 * List<Dto> result = new ArrayList<>();
+		 *
+		 * for (Entity item : list) {
+		 *     result.add(toDto(item));
+		 * }
+		 * */
 	}
 
 	@Override
 	@Transactional
 	public boolean markAsRead(Long userId, Long notificationId) {
+		RbacSupport.assertSelfOrAdmin(userId, "notifications");
 		return notificationRepository.findById(notificationId)
 				.filter(n -> n.getUserId().equals(userId))
 				.map(n -> {
@@ -121,6 +155,7 @@ public class NotificationServiceImpl implements NotificationService {
 				.title(n.getTitle())
 				.body(n.getBody())
 				.orderId(n.getOrderId())
+				.profileId(n.getProfileId())
 				.read(n.isRead())
 				.createdAt(n.getCreatedAt())
 				.build();

@@ -61,3 +61,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
+
+/**
+ * For every incoming request,
+ * check JWT token,
+ * validate it,
+ * authenticate the user,
+ * and store authentication in Spring Security Context.
+ *
+ *
+ *
+ * What is SecurityContextHolder?
+ *
+ *      Very important concept.
+ *      Spring Security stores current logged-in user here.
+ *      Think of it like:
+ *      Current Request Security Box
+ *
+ * */

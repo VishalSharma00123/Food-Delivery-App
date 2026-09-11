@@ -3,9 +3,11 @@ package com.notification_service.notification_service.service;
 import com.notification_service.notification_service.dto.event.OrderPlacedEvent;
 import com.notification_service.notification_service.dto.event.PaymentConfirmedEvent;
 import com.notification_service.notification_service.dto.event.PaymentFailedEvent;
+import com.notification_service.notification_service.dto.event.UserProfileChangedPayload;
 import com.notification_service.notification_service.entity.Notification;
 import com.notification_service.notification_service.entity.NotificationType;
 import com.notification_service.notification_service.repository.NotificationRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,8 +15,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +35,18 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceImplTest {
+
+	@AfterEach
+	void clearSecurity() {
+		SecurityContextHolder.clearContext();
+	}
+
+	private void asAuthenticatedUser(long userId) {
+		UsernamePasswordAuthenticationToken auth =
+				new UsernamePasswordAuthenticationToken("test", null, List.of());
+		auth.setDetails(userId);
+		SecurityContextHolder.getContext().setAuthentication(auth);
+	}
 
 	@Mock
 	private NotificationRepository notificationRepository;
@@ -106,6 +123,14 @@ class NotificationServiceImplTest {
 		notificationService.onOrderPlaced(orderPlacedEvent);
 
 		verify(notificationRepository, never()).existsByUserIdAndTypeAndOrderId(any(), any(), any());
+
+		/**
+		 * 🎯 Simple Understanding
+		     * Mockito Code	Meaning
+			 * verify(mock)	method WAS called
+			 * verify(mock, never())	method was NOT called
+			 * any()	match any input
+		 * */
 	}
 
 	@Test
@@ -119,6 +144,39 @@ class NotificationServiceImplTest {
 		ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
 		verify(notificationRepository).save(captor.capture());
 		assertEquals(NotificationType.PAYMENT_CONFIRMED, captor.getValue().getType());
+	}
+
+	@Test
+	void onUserProfileChanged_saves_whenAuthUserIdPresent() {
+		UserProfileChangedPayload payload = UserProfileChangedPayload.builder()
+				.type(UserProfileChangedPayload.ChangeType.UPDATED)
+				.profileId(5L)
+				.authUserId(200L)
+				.occurredAt(Instant.parse("2026-01-01T12:00:00Z"))
+				.build();
+		when(notificationRepository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		notificationService.onUserProfileChanged(payload);
+
+		ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+		verify(notificationRepository).save(captor.capture());
+		assertEquals(200L, captor.getValue().getUserId());
+		assertEquals(NotificationType.USER_PROFILE_CHANGED, captor.getValue().getType());
+		assertEquals(5L, captor.getValue().getProfileId());
+	}
+
+	@Test
+	void onUserProfileChanged_skipsSave_whenAuthUserIdNull() {
+		UserProfileChangedPayload payload = UserProfileChangedPayload.builder()
+				.type(UserProfileChangedPayload.ChangeType.CREATED)
+				.profileId(1L)
+				.authUserId(null)
+				.occurredAt(Instant.now())
+				.build();
+
+		notificationService.onUserProfileChanged(payload);
+
+		verify(notificationRepository, never()).save(any());
 	}
 
 	@Test
@@ -136,6 +194,7 @@ class NotificationServiceImplTest {
 
 	@Test
 	void markAsRead_returnsTrue_andUpdates() {
+		asAuthenticatedUser(100L);
 		Notification n = Notification.builder()
 				.id(1L)
 				.userId(100L)
@@ -158,6 +217,7 @@ class NotificationServiceImplTest {
 
 	@Test
 	void markAsRead_returnsFalse_whenWrongUser() {
+		asAuthenticatedUser(999L);
 		Notification n = Notification.builder()
 				.id(1L)
 				.userId(100L)
@@ -178,6 +238,7 @@ class NotificationServiceImplTest {
 
 	@Test
 	void listForUser_unreadOnly_usesUnreadQuery() {
+		asAuthenticatedUser(100L);
 		when(notificationRepository.findByUserIdAndReadOrderByCreatedAtDesc(100L, false))
 				.thenReturn(Collections.emptyList());
 
@@ -188,6 +249,7 @@ class NotificationServiceImplTest {
 
 	@Test
 	void listForUser_all_usesFullQuery() {
+		asAuthenticatedUser(100L);
 		when(notificationRepository.findByUserIdOrderByCreatedAtDesc(100L)).thenReturn(List.of());
 
 		notificationService.listForUser(100L, false);

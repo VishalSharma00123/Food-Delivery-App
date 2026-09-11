@@ -23,7 +23,7 @@ public class PaymentEventConsumer {
     public void onPaymentConfirmed(PaymentConfirmedEvent event) {
         log.info("Received PaymentConfirmedEvent: orderId={}, transactionId={}",
                 event.getOrderId(), event.getTransactionId());
-        orderService.updateOrderStatus(event.getOrderId(), "CONFIRMED");
+        orderService.updateOrderStatusInternal(event.getOrderId(), "CONFIRMED");
     }
 
     @KafkaListener(
@@ -34,6 +34,6 @@ public class PaymentEventConsumer {
     public void onPaymentFailed(PaymentFailedEvent event) {
         log.warn("Received PaymentFailedEvent: orderId={}, reason={}",
                 event.getOrderId(), event.getReason());
-        orderService.updateOrderStatus(event.getOrderId(), "PAYMENT_FAILED");
+        orderService.updateOrderStatusInternal(event.getOrderId(), "PAYMENT_FAILED");
     }
 }

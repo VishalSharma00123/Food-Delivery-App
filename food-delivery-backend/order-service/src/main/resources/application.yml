@@ -18,7 +18,7 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -26,15 +26,13 @@ spring:
         spring.json.add.type.headers: false
     consumer:
       group-id: order-service-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
 
 # Feign configuration (connects to restaurant-service)
 restaurant-service:
   url: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
+
+jwt:
+  secret: ${JWT_SECRET:12345678901234567890123456789012}
 
 # Kafka topic names
 kafka:

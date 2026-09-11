@@ -57,7 +57,19 @@ public class JwtService {
     }
 
     public Long extractUserId(String token) {
-        return extractAllClaims(token).get("userId", Long.class);
+        Object raw = extractAllClaims(token).get("userId");
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(raw.toString().trim());
+        } catch (NumberFormatException ex) {
+            log.warn("Invalid userId claim in JWT: {}", raw);
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")

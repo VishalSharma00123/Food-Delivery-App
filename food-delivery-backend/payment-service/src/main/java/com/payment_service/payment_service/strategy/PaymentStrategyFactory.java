@@ -1,6 +1,5 @@
 package com.payment_service.payment_service.strategy;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -13,7 +12,6 @@ import java.util.stream.Collectors;
  * Spring auto-injects all PaymentStrategy beans, so adding a new strategy requires zero factory code changes.
  */
 @Component
-@RequiredArgsConstructor
 public class PaymentStrategyFactory {
 
     private final Map<String, PaymentStrategy> strategyMap;

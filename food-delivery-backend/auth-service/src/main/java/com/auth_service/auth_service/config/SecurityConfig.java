@@ -33,7 +33,8 @@ public class SecurityConfig {
         return http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
+                // /error must be open: failed login otherwise becomes empty 403
+                .requestMatchers("/api/auth/**", "/error").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -60,3 +61,10 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+
+
+/**
+ * CSRF(Cross Site Request Forgery) protection is primarily required and enabled when using stateful authentication (sessions/cookies).
+ * it provides authentication to Cookie based credentials (Session is created between client and server)
+ *
+ * */

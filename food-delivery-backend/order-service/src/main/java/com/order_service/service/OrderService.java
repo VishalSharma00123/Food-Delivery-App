@@ -11,5 +11,6 @@ public interface OrderService {
     List<OrderDto> getOrdersByUserId(Long userId);
     List<OrderDto> getOrdersByRestaurantId(Long restaurantId);
     OrderDto updateOrderStatus(Long orderId, String status);
+    void updateOrderStatusInternal(Long orderId, String status); // for Kafka consumers (no security context)
     void cancelOrder(Long orderId);
 }

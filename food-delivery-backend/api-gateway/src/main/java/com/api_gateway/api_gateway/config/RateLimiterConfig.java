@@ -111,6 +111,7 @@ public class RateLimiterConfig {
      * 30 req/s steady, burst up to 60.
      */
     @Bean
+    @Primary
     public RedisRateLimiter authenticatedRateLimiter() {
         return new RedisRateLimiter(30, 60, 1);
     }

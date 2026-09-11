@@ -1,0 +1,15 @@
+# Optional: start only the frontend against an already-running backend stack.
+# Prefer: docker compose -f food-delivery-backend/docker-compose.yml -p food-delivery-backend up -d --build frontend
+services:
+  frontend:
+    build:
+      context: ./food-delivery-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    image: food-delivery/frontend:local
+    pull_policy: build
+    container_name: food_delivery_frontend
+    restart: on-failure
+    ports:
+      - "3000:3000"

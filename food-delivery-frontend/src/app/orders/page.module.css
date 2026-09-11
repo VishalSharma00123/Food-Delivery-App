@@ -1,0 +1,319 @@
+.page {
+  min-height: 100vh;
+  padding: 100px 0 60px;
+  background-color: var(--bg-main);
+}
+
+.container {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 32px;
+  background: linear-gradient(135deg, #ffffff 0%, var(--text-muted) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.orderCard {
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-smooth);
+}
+
+.orderCard:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-lg);
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.orderMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orderId {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.orderDate {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.orderCost {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.costValue {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--secondary);
+}
+
+.costLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.timeline {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 0;
+}
+
+.timelineTrack {
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  right: 32px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.timelineProgress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timelineNode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.nodeIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dark);
+  transition: var(--transition-bounce);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.nodeLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.nodeCompleted .nodeIcon {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: #fff;
+  box-shadow: 0 0 16px var(--secondary-glow);
+}
+
+.nodeCompleted .nodeLabel {
+  color: var(--text-main);
+}
+
+.nodeActive .nodeIcon {
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+  color: var(--primary);
+  box-shadow: 0 0 16px var(--primary-glow);
+  transform: scale(1.1);
+}
+
+.nodeActive .nodeLabel {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.cancelledBanner {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fca5a5;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.itemsSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.015);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.itemsTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dark);
+}
+
+.itemsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+}
+
+.itemRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.itemDetails {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.itemQty {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.85rem;
+  background: var(--primary-subtle);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 107, 38, 0.12);
+}
+
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btnCancel {
+  background: var(--danger-glow);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-smooth);
+}
+
+.btnCancel:hover {
+  background: var(--danger);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--danger-glow);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 40px;
+  gap: 16px;
+  color: var(--text-muted);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+}
+
+.emptyStateTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-top: 4px;
+}
+
+@media (max-width: 600px) {
+  .orderHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .orderCost {
+    align-items: flex-start;
+  }
+  .timeline {
+    padding: 4px 0;
+  }
+  .timelineTrack {
+    left: 20px;
+    right: 20px;
+    top: 22px;
+  }
+  .nodeLabel {
+    font-size: 0.7rem;
+  }
+  .nodeIcon {
+    width: 38px;
+    height: 38px;
+  }
+  .orderCard {
+    padding: 20px;
+  }
+  .title {
+    font-size: 1.5rem;
+  }
+}

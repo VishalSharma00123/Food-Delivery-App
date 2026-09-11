@@ -59,15 +59,14 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // Check for Authorization header
-        if (!request.getHeaders().containsHeader(HttpHeaders.AUTHORIZATION)) {
+        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+
+        if (authHeader == null) {
             log.warn("Missing Authorization header for: {} {}", method, path);
             return onError(exchange, "Missing Authorization header", HttpStatus.UNAUTHORIZED);
         }
 
-        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (!authHeader.startsWith("Bearer ")) {
             log.warn("Invalid Authorization header format for: {} {}", method, path);
             return onError(exchange, "Invalid Authorization header format", HttpStatus.UNAUTHORIZED);
         }
@@ -85,16 +84,41 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             String email = jwtService.extractEmail(token);
             Long userId = jwtService.extractUserId(token);
             List<String> roles = jwtService.extractRoles(token);
+            if (roles == null) {
+                roles = List.of();
+            }
+
+            if (userId == null) {
+                log.warn("JWT missing/invalid userId claim for: {} {}", method, path);
+                return onError(exchange, "Invalid JWT: userId claim missing", HttpStatus.UNAUTHORIZED);
+            }
 
             log.debug("JWT valid - userId: {}, email: {}, roles: {}", userId, email, roles);
 
-            // Add user info as headers for downstream services
+            final Long resolvedUserId = userId;
+            final List<String> resolvedRoles = roles;
+            final String resolvedEmail = email != null ? email : "";
+            final String rolesHeader = String.join(",", resolvedRoles);
+
+            // Stash on the exchange; IdentityForwardingFilter re-applies these
+            // immediately before the downstream HTTP call.
+            exchange.getAttributes().put(IdentityHeadersBridge.AUTH_HEADER, authHeader);
+            exchange.getAttributes().put(IdentityHeadersBridge.USER_ID, String.valueOf(resolvedUserId));
+            exchange.getAttributes().put(IdentityHeadersBridge.USER_EMAIL, resolvedEmail);
+            exchange.getAttributes().put(IdentityHeadersBridge.USER_ROLES, rolesHeader);
+
             ServerHttpRequest mutatedRequest = request.mutate()
-                    .header("X-User-Id", String.valueOf(userId))
-                    .header("X-User-Email", email)
-                    .header("X-User-Roles", String.join(",", roles))
+                    .headers(headers -> {
+                        headers.set(HttpHeaders.AUTHORIZATION, authHeader);
+                        headers.set("X-Access-Token", authHeader);
+                        headers.set("X-User-Id", String.valueOf(resolvedUserId));
+                        headers.set("X-User-Email", resolvedEmail);
+                        headers.set("X-User-Roles", rolesHeader);
+                    })
                     .build();
 
+            log.info("Gateway JWT OK — forwarding {} {} as userId={} roles={}",
+                    method, path, resolvedUserId, resolvedRoles);
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
 
         } catch (Exception e) {
@@ -105,7 +129,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -1; // High priority - runs before other filters
+        return Ordered.HIGHEST_PRECEDENCE + 10;
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus status) {
