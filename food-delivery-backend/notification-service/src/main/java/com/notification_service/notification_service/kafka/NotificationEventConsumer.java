@@ -3,6 +3,7 @@ package com.notification_service.notification_service.kafka;
 import com.notification_service.notification_service.dto.event.OrderPlacedEvent;
 import com.notification_service.notification_service.dto.event.PaymentConfirmedEvent;
 import com.notification_service.notification_service.dto.event.PaymentFailedEvent;
+import com.notification_service.notification_service.dto.event.UserProfileChangedPayload;
 import com.notification_service.notification_service.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,5 +45,15 @@ public class NotificationEventConsumer {
 	public void onPaymentFailed(PaymentFailedEvent event) {
 		log.info("Received PaymentFailedEvent: orderId={}, userId={}", event.getOrderId(), event.getUserId());
 		notificationService.onPaymentFailed(event);
+	}
+
+	@KafkaListener(
+			topics = "${kafka.topics.user-profile-changed}",
+			groupId = "${spring.kafka.consumer.group-id}",
+			containerFactory = "kafkaListenerContainerFactory"
+	)
+	public void onUserProfileChanged(UserProfileChangedPayload event) {
+		log.info("Received UserProfileChangedPayload: authUserId={}, profileId={}", event.getAuthUserId(), event.getProfileId());
+		notificationService.onUserProfileChanged(event);
 	}
 }

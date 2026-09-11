@@ -3,7 +3,6 @@ package com.api_gateway.api_gateway.controller;
 import com.api_gateway.api_gateway.dto.ApiErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/fallback")
 public class FallbackController {
 
-    @GetMapping("/auth")
+    @RequestMapping("/auth")
     public ResponseEntity<ApiErrorResponse> authFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiErrorResponse.of(
@@ -24,7 +23,7 @@ public class FallbackController {
                         503));
     }
 
-    @GetMapping("/restaurant")
+    @RequestMapping("/restaurant")
     public ResponseEntity<ApiErrorResponse> restaurantFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiErrorResponse.of(
@@ -33,7 +32,7 @@ public class FallbackController {
                         503));
     }
 
-    @GetMapping("/order")
+    @RequestMapping("/order")
     public ResponseEntity<ApiErrorResponse> orderFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiErrorResponse.of(
@@ -42,7 +41,16 @@ public class FallbackController {
                         503));
     }
 
-    @GetMapping("/payment")
+    @RequestMapping("/user")
+    public ResponseEntity<ApiErrorResponse> userFallback() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(
+                        "User Service is currently unavailable. Please try again later.",
+                        "/api/users",
+                        503));
+    }
+
+    @RequestMapping("/payment")
     public ResponseEntity<ApiErrorResponse> paymentFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiErrorResponse.of(
@@ -51,7 +59,7 @@ public class FallbackController {
                         503));
     }
 
-    @GetMapping("/notification")
+    @RequestMapping("/notification")
     public ResponseEntity<ApiErrorResponse> notificationFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiErrorResponse.of(

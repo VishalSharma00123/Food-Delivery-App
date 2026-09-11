@@ -45,6 +45,9 @@ public class Notification {
 
 	private Long orderId;
 
+	@Column(name = "profile_id")
+	private Long profileId;
+
 	@Column(name = "is_read", nullable = false)
 	private boolean read;
 

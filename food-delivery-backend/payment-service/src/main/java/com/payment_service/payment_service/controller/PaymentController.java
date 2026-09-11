@@ -1,7 +1,11 @@
 package com.payment_service.payment_service.controller;
 
 import com.payment_service.payment_service.dto.PaymentDto;
+import com.payment_service.payment_service.dto.RazorpayCheckoutResponse;
+import com.payment_service.payment_service.dto.RazorpayInitiateRequest;
+import com.payment_service.payment_service.dto.RazorpayVerifyRequest;
 import com.payment_service.payment_service.service.PaymentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +18,34 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+
+    /**
+     * GET /api/payments/razorpay/checkout/{orderId}
+     * Returns Razorpay Checkout.js parameters for an online payment.
+     */
+    @GetMapping("/razorpay/checkout/{orderId}")
+    public ResponseEntity<RazorpayCheckoutResponse> createRazorpayCheckout(@PathVariable Long orderId) {
+        return ResponseEntity.ok(paymentService.createRazorpayCheckout(orderId));
+    }
+
+    /**
+     * POST /api/payments/razorpay/initiate
+     * Starts Razorpay checkout even when Kafka has not created the payment row yet.
+     */
+    @PostMapping("/razorpay/initiate")
+    public ResponseEntity<RazorpayCheckoutResponse> initiateRazorpayCheckout(
+            @Valid @RequestBody RazorpayInitiateRequest request) {
+        return ResponseEntity.ok(paymentService.initiateRazorpayCheckout(request));
+    }
+
+    /**
+     * POST /api/payments/razorpay/verify
+     * Verifies Razorpay payment signature and confirms the order payment.
+     */
+    @PostMapping("/razorpay/verify")
+    public ResponseEntity<PaymentDto> verifyRazorpayPayment(@Valid @RequestBody RazorpayVerifyRequest request) {
+        return ResponseEntity.ok(paymentService.verifyRazorpayPayment(request));
+    }
 
     /**
      * GET /api/payments/{paymentId}

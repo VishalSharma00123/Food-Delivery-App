@@ -1,0 +1,10 @@
+**/target
+**/.git
+**/.idea
+**/.DS_Store
+**/dump.rdb
+**/*.md
+**/k8s
+**/mvnw
+**/.mvn
+**/node_modules

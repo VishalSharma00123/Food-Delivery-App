@@ -1,6 +1,14 @@
-version: '3.8'
-
 services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: food_delivery_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+
   mysql-db:
     image: mysql:8.0
     container_name: food_delivery_mysql
@@ -32,22 +40,35 @@ services:
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
+    image: food-delivery/api-gateway:local
+    pull_policy: build
     container_name: food_delivery_api_gateway
     restart: on-failure
     ports:
       - "8080:8080"
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8081
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:8082
       - JWT_SECRET=12345678901234567890123456789012
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - USER_SERVICE_URL=http://user-service:8086
+      - ORDER_SERVICE_URL=http://order-service:8083
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
+#      depends on  means start this service only after the listed services are started like auth-service, restaurant-service and user-service
     depends_on:
+      - redis
       - auth-service
+      - restaurant-service
+      - user-service
 
   restaurant-service:
     build:
-      context: ./restaurent-service
-      dockerfile: Dockerfile
-    image: vishalsharma/restaurant-service:latest
+      context: .
+      dockerfile: restaurent-service/Dockerfile
+    image: food-delivery/restaurant-service:local
+    pull_policy: build
     container_name: restaurant_service
     restart: on-failure
     ports:
@@ -57,16 +78,19 @@ services:
       - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=Vishal@90
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=12345678901234567890123456789012
+      - UPLOAD_DIR=/var/bitecraft/uploads
+    volumes:
+      - restaurant_uploads:/var/bitecraft/uploads
     depends_on:
       - mysql-db
-      - kafka
 
   order-service:
     build:
-      context: ./order-service
-      dockerfile: Dockerfile
-    image: vishalsharma/order-service:latest
+      context: .
+      dockerfile: order-service/Dockerfile
+    image: food-delivery/order-service:local
+    pull_policy: build
     container_name: order_service
     restart: on-failure
     ports:
@@ -76,6 +100,7 @@ services:
       - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=Vishal@90
+      - JWT_SECRET=12345678901234567890123456789012
       - RESTAURANT_SERVICE_URL=http://restaurant-service:8082
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
@@ -85,9 +110,10 @@ services:
 
   payment-service:
     build:
-      context: ./payment-service
-      dockerfile: Dockerfile
-    image: vishalsharma/payment-service:latest
+      context: .
+      dockerfile: payment-service/Dockerfile
+    image: food-delivery/payment-service:local
+    pull_policy: build
     container_name: payment_service
     restart: on-failure
     ports:
@@ -97,6 +123,7 @@ services:
       - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=Vishal@90
+      - JWT_SECRET=12345678901234567890123456789012
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       - mysql-db
@@ -104,9 +131,10 @@ services:
 
   notification-service:
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile
-    image: vishalsharma/notification-service:latest
+      context: .
+      dockerfile: notification-service/Dockerfile
+    image: food-delivery/notification-service:local
+    pull_policy: build
     container_name: notification_service
     restart: on-failure
     ports:
@@ -116,40 +144,89 @@ services:
       - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=Vishal@90
+      - JWT_SECRET=12345678901234567890123456789012
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       - mysql-db
       - kafka
 
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    image: food-delivery/user-service:local
+    pull_policy: build
+    container_name: user_service
+    restart: on-failure
+    ports:
+      - "8086:8086"
+    environment:
+      - MYSQL_HOST=mysql-db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=Vishal@90
+      - JWT_SECRET=12345678901234567890123456789012
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - mysql-db
+      - kafka
+
+  # Confluent images use explicit tags (Bitnami :latest often returns "manifest unknown" on Docker Hub).
   zookeeper:
-    image: bitnami/zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.6.1
     container_name: food_delivery_zookeeper
     restart: always
     ports:
       - "2181:2181"
     environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     volumes:
-      - zookeeper_data:/bitnami
+      - zookeeper_data:/var/lib/zookeeper/data
 
   kafka:
-    image: bitnami/kafka:latest
+    image: confluentinc/cp-kafka:7.6.1
     container_name: food_delivery_kafka
     restart: always
     ports:
-      - "9092:9092"
+      - "9092:9092"   # internal Docker-to-Docker
+      - "9093:9093"   # external host-to-Docker (for local dev)
     environment:
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
     depends_on:
       - zookeeper
     volumes:
-      - kafka_data:/bitnami
+      - kafka_data:/var/lib/kafka/data
+
+  # Next.js UI — browser still calls API at localhost:8080 (not api-gateway hostname)
+  frontend:
+    build:
+      context: ../food-delivery-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    image: food-delivery/frontend:local
+    pull_policy: build
+    container_name: food_delivery_frontend
+    restart: on-failure
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
 
 volumes:
   mysql_data:
+  redis_data:
   zookeeper_data:
   kafka_data:
+  restaurant_uploads:

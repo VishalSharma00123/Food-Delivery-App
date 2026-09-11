@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * CORS - Cross-Origin Resource Sharing.
  * CORS configuration for the API Gateway.
  * This is the ONLY place CORS should be configured in a gateway architecture.
  * Individual microservices should NOT configure CORS separately.
@@ -22,11 +23,12 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Allow all origins for development. Restrict in production.
-        config.setAllowedOrigins(List.of("*"));
+        // Use origin patterns so browsers may send Authorization from localhost:3000.
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

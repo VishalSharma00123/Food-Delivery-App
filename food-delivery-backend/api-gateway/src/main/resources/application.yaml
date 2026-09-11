@@ -1,19 +1,36 @@
 server:
   port: 8080
 
+#Essentially, yes—there is zero real-time attempt to call the downstream service. When the circuit breaker is in the Open state,
+#it "trips" and immediately blocks any new requests from even trying to reach the destination service.However, the "communication" doesn't just
+#disappear. Instead, the circuit breaker handles it in one of these ways:Fast Fail: The calling service gets an immediate error (like a 503 Service
+#Unavailable) without waiting for a timeout.Fallback Response: The system can provide a "plan B," such as returning cached data or a default value so
+#  the user still sees something useful.The "Wait and See" (Half-Open): The circuit doesn't stay open forever. After a set period (the "sleep window"),
+#  it moves to a Half-Open state where it lets just one or a few requests through to see if the other service is healthy again.
+
 spring:
   application:
     name: api-gateway
+  codec:
+    max-in-memory-size: 10MB
 
   cloud:
     gateway:
+      # Never strip Authorization (older SCG defaults listed it as sensitive).
+      sensitive-headers: []
+      # Cut off slow downstream calls so the client gets the CB fallback quickly
+      # instead of waiting for the full upstream (e.g. MySQL connect) to finish.
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 20s
+
       # ============ ROUTE DEFINITIONS ============
       routes:
 
         # ---------- AUTH SERVICE ----------
         # Lower rate limit – brute-force protection (10 req/s, burst 20)
         - id: auth-service
-          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          uri: ${AUTH_SERVICE_URL:http://127.0.0.1:8081}
           predicates:
             - Path=/api/auth/**
           filters:
@@ -26,10 +43,43 @@ spring:
                 redis-rate-limiter: "#{@authRateLimiter}"
                 key-resolver: "#{@ipKeyResolver}"
 
+        # ---------- RESTAURANT SERVICE (Public menu & catalog) ----------
+        # Order service + customer UI – no JWT (30 req/s, burst 60)
+        - id: restaurant-service-public-api
+          uri: ${RESTAURANT_SERVICE_URL:http://127.0.0.1:8082}
+          predicates:
+            - Path=/api/public/restaurants/**
+            - Method=GET
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: restaurantServiceCB
+                fallbackUri: forward:/fallback/restaurant
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@publicReadRateLimiter}"
+                key-resolver: "#{@ipKeyResolver}"
+
+        # ---------- RESTAURANT SERVICE (Local disk menu images) ----------
+        - id: restaurant-service-public-media
+          uri: ${RESTAURANT_SERVICE_URL:http://127.0.0.1:8082}
+          predicates:
+            - Path=/api/public/media/**
+            - Method=GET
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: restaurantServiceCB
+                fallbackUri: forward:/fallback/restaurant
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@publicReadRateLimiter}"
+                key-resolver: "#{@ipKeyResolver}"
+
         # ---------- RESTAURANT SERVICE (Public GET) ----------
         # Public reads – generous limit (50 req/s, burst 100)
         - id: restaurant-service-public
-          uri: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
+          uri: ${RESTAURANT_SERVICE_URL:http://127.0.0.1:8082}
           predicates:
             - Path=/api/restaurants/**
             - Method=GET
@@ -46,7 +96,7 @@ spring:
         # ---------- RESTAURANT SERVICE (Authenticated writes) ----------
         # Secured mutations – per-user limit (30 req/s, burst 60)
         - id: restaurant-service-secured
-          uri: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
+          uri: ${RESTAURANT_SERVICE_URL:http://127.0.0.1:8082}
           predicates:
             - Path=/api/restaurants/**
             - Method=POST,PUT,PATCH,DELETE
@@ -63,7 +113,7 @@ spring:
         # ---------- ORDER SERVICE ----------
         # Transactional – per-user limit (30 req/s, burst 60)
         - id: order-service
-          uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+          uri: ${ORDER_SERVICE_URL:http://127.0.0.1:8083}
           predicates:
             - Path=/api/orders/**
           filters:
@@ -76,10 +126,25 @@ spring:
                 redis-rate-limiter: "#{@authenticatedRateLimiter}"
                 key-resolver: "#{@userKeyResolver}"
 
+        # ---------- USER SERVICE (profiles & addresses) ----------
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://127.0.0.1:8086}
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: userServiceCB
+                fallbackUri: forward:/fallback/user
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter: "#{@authenticatedRateLimiter}"
+                key-resolver: "#{@userKeyResolver}"
+
         # ---------- PAYMENT SERVICE ----------
         # High-value endpoints – per-user limit (30 req/s, burst 60)
         - id: payment-service
-          uri: ${PAYMENT_SERVICE_URL:http://localhost:8084}
+          uri: ${PAYMENT_SERVICE_URL:http://127.0.0.1:8084}
           predicates:
             - Path=/api/payments/**
           filters:
@@ -95,7 +160,7 @@ spring:
         # ---------- NOTIFICATION SERVICE ----------
         # Internal use – moderate limit (20 req/s, burst 40)
         - id: notification-service
-          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          uri: ${NOTIFICATION_SERVICE_URL:http://127.0.0.1:8085}
           predicates:
             - Path=/api/notifications/**
           filters:
@@ -116,9 +181,11 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
+            allowedOriginPatterns: "*"
             allowedMethods: "*"
             allowedHeaders: "*"
+            allowCredentials: true
+            exposedHeaders: Authorization,Content-Type
 
   # ============ REDIS ============
   # Used by Spring Cloud Gateway's built-in RequestRateLimiter (Token Bucket)
@@ -136,9 +203,16 @@ spring:
           min-idle: 2
           max-wait: 1000ms  # block at most 1 s before error
 
-# JWT config – MUST match auth-service exactly
+# JWT config – MUST match auth-service exactly (same default as auth-service application.yaml)
+# Primary rate limits: per-route RequestRateLimiter + Redis (see RateLimiterConfig).
+# Do NOT enable in-memory unless Redis is down — it caps ALL routes at 100 req/min per IP.
+gateway:
+  rate-limit:
+    in-memory:
+      enabled: false
+
 jwt:
-  secret: ${JWT_SECRET:YourSuperSecretKeyThatIsAtLeast32BytesLong12345}
+  secret: ${JWT_SECRET:12345678901234567890123456789012}
 
 # ============ RESILIENCE4J CIRCUIT BREAKER ============
 resilience4j:
@@ -148,15 +222,18 @@ resilience4j:
         slidingWindowSize: 10
         failureRateThreshold: 50
         waitDurationInOpenState: 10000
+#        10,000 ms = 10 seconds.
         permittedNumberOfCallsInHalfOpenState: 5
-        slowCallRateThreshold: 50
-        slowCallDurationThreshold: 2000
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 10000   # 10s – prevents cold-start requests from being counted as "slow"
     instances:
       authServiceCB:
         baseConfig: default
       restaurantServiceCB:
         baseConfig: default
       orderServiceCB:
+        baseConfig: default
+      userServiceCB:
         baseConfig: default
       paymentServiceCB:
         baseConfig: default
@@ -166,7 +243,21 @@ resilience4j:
   timelimiter:
     configs:
       default:
-        timeoutDuration: 5s
+        timeoutDuration: 20s
+        cancelRunningFuture: true
+    instances:
+      authServiceCB:
+        baseConfig: default
+      restaurantServiceCB:
+        baseConfig: default
+      orderServiceCB:
+        baseConfig: default
+      userServiceCB:
+        baseConfig: default
+      paymentServiceCB:
+        baseConfig: default
+      notificationServiceCB:
+        baseConfig: default
 
 # ============ ACTUATOR ============
 management:

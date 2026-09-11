@@ -21,3 +21,6 @@ The Order Service is responsible for managing the entire lifecycle of customer o
 ## Integration & APIs
 - **Restaurant Service**: Required to fetch up-to-date `.price` and `.isAvailable` metrics for items in the cart before placing the order to prevent price tampering.
 - **REST APIs**: Public-facing APIs protected by API Gateway JWT validation. Role-Based constraints enforce that only owners can update statuses.
+
+## Related: User Service
+Customer **profiles and delivery addresses** live in the dedicated **`user-service`** module (not in this repository folder). Orders continue to store `user_id` / `authUserId` as today; optional future work is to resolve default delivery address from User Service when placing an order. See `../user-service/Requirement.md` and `../user-service/design.md`.

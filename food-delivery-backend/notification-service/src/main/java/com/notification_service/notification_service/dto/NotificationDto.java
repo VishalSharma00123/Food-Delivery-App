@@ -19,6 +19,7 @@ public class NotificationDto {
 	private String title;
 	private String body;
 	private Long orderId;
+	private Long profileId;
 	private boolean read;
 	private LocalDateTime createdAt;
 }

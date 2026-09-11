@@ -1,21 +1,29 @@
+# for compilation, base image
 FROM eclipse-temurin:17-jdk-jammy AS builder
 
+#
 WORKDIR /app
 
 COPY pom.xml .
 COPY .mvn .mvn
 COPY mvnw .
 
+# Makes the Maven wrapper executable.
 RUN chmod +x mvnw
+
+# Downloads dependencies before copying src
 RUN ./mvnw dependency:go-offline -B
 
+# Copies application source.
 COPY src ./src
 
+# Builds the Spring Boot JAR, Tests are skipped
 RUN ./mvnw clean package -DskipTests
 
 # ---- Runtime Stage ----
 FROM eclipse-temurin:17-jre-jammy
 
+#
 WORKDIR /app
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser

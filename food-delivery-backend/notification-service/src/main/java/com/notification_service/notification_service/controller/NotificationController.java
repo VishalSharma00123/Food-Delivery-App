@@ -34,7 +34,12 @@ public class NotificationController {
 		boolean updated = notificationService.markAsRead(userId, notificationId);
 		if (!updated) {
 			return ResponseEntity.notFound().build();
+			/**
+			 * ✅ Why 204 No Content?
+			 * Update successful
+			 * No need to return data
+			 * */
 		}
-		return ResponseEntity.noContent().build();
+		return ResponseEntity.noContent().build(); // no notification found
 	}
 }

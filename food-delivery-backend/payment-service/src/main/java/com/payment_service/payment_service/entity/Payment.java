@@ -43,6 +43,9 @@ public class Payment {
     @Column(name = "transaction_id")
     private String transactionId;
 
+    @Column(name = "razorpay_order_id")
+    private String razorpayOrderId;
+
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 

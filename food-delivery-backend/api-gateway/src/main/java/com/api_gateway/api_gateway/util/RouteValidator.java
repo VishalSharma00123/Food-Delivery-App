@@ -25,7 +25,9 @@ public class RouteValidator {
 
     // GET requests to these paths are public
     public static final List<String> PUBLIC_GET_ENDPOINTS = List.of(
-            "/api/restaurants"
+            "/api/restaurants",
+            "/api/public/restaurants",
+            "/api/public/media"
     );
 
     /**
@@ -35,6 +37,11 @@ public class RouteValidator {
             request -> {
                 String path = request.getURI().getPath();
                 String method = request.getMethod().name();
+
+                // CORS preflight never carries Authorization
+                if ("OPTIONS".equalsIgnoreCase(method)) {
+                    return false;
+                }
 
                 // Check if it's an open endpoint (any method)
                 for (String openEndpoint : OPEN_API_ENDPOINTS) {

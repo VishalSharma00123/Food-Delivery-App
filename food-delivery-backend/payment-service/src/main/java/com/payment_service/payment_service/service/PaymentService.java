@@ -1,6 +1,9 @@
 package com.payment_service.payment_service.service;
 
 import com.payment_service.payment_service.dto.PaymentDto;
+import com.payment_service.payment_service.dto.RazorpayCheckoutResponse;
+import com.payment_service.payment_service.dto.RazorpayInitiateRequest;
+import com.payment_service.payment_service.dto.RazorpayVerifyRequest;
 import com.payment_service.payment_service.dto.event.OrderPlacedEvent;
 
 import java.util.List;
@@ -11,4 +14,13 @@ public interface PaymentService {
     PaymentDto getPaymentByOrderId(Long orderId);
     List<PaymentDto> getPaymentsByUserId(Long userId);
     PaymentDto refundPayment(Long paymentId);
+
+    RazorpayCheckoutResponse createRazorpayCheckout(Long orderId);
+
+    /**
+     * Creates a PENDING payment + Razorpay order if Kafka has not processed {@code order.placed} yet.
+     */
+    RazorpayCheckoutResponse initiateRazorpayCheckout(RazorpayInitiateRequest request);
+
+    PaymentDto verifyRazorpayPayment(RazorpayVerifyRequest request);
 }
